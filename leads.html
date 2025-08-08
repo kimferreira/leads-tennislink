@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leads | Tennis Link</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/assets/img/favicon.ico" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{
+      --tlink-azul:#0063A6;
+      --tlink-ciano:#00A9E0;
+      --tlink-verde:#00C8BB;
+      --tlink-dark:#0f172a; /* fallback para fundos */
+    }
+    body{ background: #0f1b2a; } /* fundo do painel após login */
+    th, td { white-space: nowrap; border-right: 1px solid #334155; }
+    th:last-child, td:last-child { border-right: none; }
+
+    /* Cabeçalho fixo + cor da marca */
+    thead th{
+      position: sticky; top: 0; z-index: 2;
+      background: var(--tlink-verde); color:#fff;
+    }
+
+    /* --- BOTÕES (mantém estilo original, só cores) --- */
+    .btn{
+      border-radius:9999px;
+      padding:0.6rem 1rem;
+      font-weight:600;
+      transition:background-color .2s ease, transform .15s ease, box-shadow .2s ease;
+      box-shadow: 0 1px 2px #00C8BB;
+    }
+    .btn:hover{ transform: translateY(-1px); }
+    .btn-limpar{ background:#0063A6; color:#fff; }
+    .btn-limpar:hover{ background:#00A9E0; }
+    .btn-exportar{ background:#00C8BB; color:#07191a; }
+    .btn-exportar:hover{ background:#00A9E0; color:#061317; }
+    .btn-sair{ background:#0063A6; color:#fff; }
+    .btn-sair:hover{ background:#00A9E0; }
+
+    /* Melhor scroll horizontal suave no mobile */
+    .scroll-touch { -webkit-overflow-scrolling: touch; }
+
+    @media (min-width: 768px){
+      tbody tr:nth-child(even){ background: rgba(255,255,255,0.03); }
+    }
+  </style>
+</head>
+<body class="text-white min-h-screen p-4 md:p-8">
+
+  <!-- LOGIN (mantém seu fundo azul se quiser usar essa tela isolada) -->
+  <div id="loginContainer" class="min-h-[80vh] flex items-center justify-center">
+    <div class="bg-slate-800/80 backdrop-blur p-6 md:p-8 rounded-2xl shadow-lg w-full max-w-md border border-slate-700">
+      <div class="flex items-center justify-center mb-5">
+        <!-- coloque seu arquivo na mesma pasta -->
+        <img src="/assets/img/tennislinklogo.png" alt="Tennis Link" class="h-12">
+      </div>
+      <h2 class="text-2xl font-bold text-center mb-6 text-color: #ffffff">Acesso Restrito</h2>
+      <div class="space-y-3">
+        <input type="email" id="email" placeholder="E-mail" class="w-full p-3 rounded-md text-black" />
+        <input type="password" id="senha" placeholder="Senha" class="w-full p-3 rounded-md text-black" />
+        <button onclick="validarLogin()" class="bg-[#00C8BB] hover:bg-[#00A9E0] text-white px-4 py-2 rounded-md w-full">Entrar</button>
+      </div>
+      <p id="erro" class="text-red-400 text-center mt-4 hidden">Credenciais incorretas. Tente novamente.</p>
+    </div>
+  </div>
+
+  <!-- PAINEL DE LEADS -->
+  <div id="conteudo" class="hidden">
+    <div class="max-w-[100vw] md:max-w-[95vw] mx-auto">
+
+      <!-- Título + Logo + Ações da barra superior -->
+      <div class="flex items-center gap-3 justify-between mb-4">
+        <div class="flex items-center gap-3">
+          <img src="/assets/img/tennislinklogo.png" alt="Tennis Link" class="h-8 md:h-10">
+          <h1 class="text-2xl md:text-3xl font-extrabold leading-tight">
+            Leads Recebidos – Tennis Link
+          </h1>
+        </div>
+        <button id="logoutBtn" class="bg-[#00C8BB] hover:bg-[#00A9E0] text-white px-4 py-2 rounded-md">Sair</button>
+      </div>
+
+      <!-- Filtros -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-3 md:mb-4">
+        <input id="searchNome" type="text" placeholder="Buscar por nome" class="px-4 py-2 rounded-md text-black" />
+        <input id="searchCidade" type="text" placeholder="Filtrar por cidade" class="px-4 py-2 rounded-md text-black" />
+        <input id="searchEstado" type="text" placeholder="Filtrar por estado" class="px-4 py-2 rounded-md text-black" />
+      </div>
+
+      <!-- Ações -->
+      <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-2">
+<button id="clearFilters" class="bg-[#00C8BB] hover:bg-[#00A9E0] text-white px-4 py-2 rounded-md">Limpar filtros</button>
+<button id="exportCSV" class="bg-[#00C8BB] hover:bg-[#00A9E0] text-white px-4 py-2 rounded-md">Exportar CSV</button>
+        <div class="flex-1"></div>
+        <div class="text-right text-sm text-slate-300 self-center sm:self-auto">
+          <span id="count"></span>
+        </div>
+      </div>
+
+      <!-- Tabela -->
+      <div class="overflow-x-auto scroll-touch border border-slate-700 rounded-xl">
+        <table class="min-w-full text-xs md:text-sm text-left">
+          <thead class="uppercase text-[10px] md:text-xs">
+            <tr>
+              <th class="px-3 md:px-4 py-3">Nome</th>
+              <th class="px-3 md:px-4 py-3">Nascimento</th>
+              <th class="px-3 md:px-4 py-3">Cidade</th>
+              <th class="px-3 md:px-4 py-3">Estado</th>
+              <th class="px-3 md:px-4 py-3">País</th>
+              <th class="px-3 md:px-4 py-3">Email</th>
+              <th class="px-3 md:px-4 py-3">WhatsApp</th>
+              <th class="px-3 md:px-4 py-3">Nível Tênis</th>
+              <th class="px-3 md:px-4 py-3">ATN</th>
+              <th class="px-3 md:px-4 py-3">Tipo Jogador</th>
+              <th class="px-3 md:px-4 py-3">Frequência Jogo</th>
+              <th class="px-3 md:px-4 py-3">Partidas Recentes</th>
+              <th class="px-3 md:px-4 py-3">Criado em</th>
+            </tr>
+          </thead>
+          <tbody class="bg-slate-800/60 divide-y divide-slate-700" id="leadsBody">
+            <tr>
+              <td colspan="13" class="px-4 py-3 text-center">Carregando dados...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- dica mobile -->
+      <p class="text-xs text-slate-400 mt-2">Dica: arraste a tabela para o lado para ver todas as colunas.</p>
+    </div>
+  </div>
+
+  <script>
+    // ------- Login simples -------
+    const EMAILS_PERMITIDOS = ["tennislink1@gmail.com","davicampos2307@gmail.com"];
+    const SENHA_CORRETA = "tennislink@2025";
+
+    function validarLogin() {
+      const email = (document.getElementById("email").value || "").trim();
+      const senha = (document.getElementById("senha").value || "").trim();
+      const erro = document.getElementById("erro");
+
+      if (EMAILS_PERMITIDOS.includes(email) && senha === SENHA_CORRETA) {
+        document.getElementById("loginContainer").style.display = "none";
+        document.getElementById("conteudo").classList.remove("hidden");
+        fetchLeads();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        erro.classList.remove("hidden");
+      }
+    }
+
+    function logout() {
+      document.getElementById("conteudo").classList.add("hidden");
+      document.getElementById("loginContainer").style.display = "flex";
+      document.getElementById("email").value = "";
+      document.getElementById("senha").value = "";
+      document.getElementById("erro").classList.add("hidden");
+      document.getElementById('searchNome').value = '';
+      document.getElementById('searchCidade').value = '';
+      document.getElementById('searchEstado').value = '';
+      document.getElementById('count').innerText = '';
+      const tbody = document.getElementById('leadsBody');
+      tbody.innerHTML = `<tr><td colspan="13" class="px-4 py-3 text-center">Carregando dados...</td></tr>`;
+      allLeads = [];
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ------- Supabase REST -------
+    const SUPABASE_URL = 'https://hubumdacrqtfwzyxdxqv.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1YnVtZGFjcnF0Znd6eXhkeHF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0MTEyODYsImV4cCI6MjA2ODk4NzI4Nn0.QuN9jZE7EzWQ9ayL_g-6R4KH5Y_ltYhQ7JMq-QAe-3s';
+
+    let allLeads = [];
+
+    async function fetchLeads() {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/cadastros?select=*`, {
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+        });
+        if (!res.ok) throw new Error('Erro ao buscar dados');
+        allLeads = await res.json();
+        applyFilters();
+      } catch (e) {
+        const tbody = document.getElementById('leadsBody');
+        tbody.innerHTML = `<tr><td class="px-4 py-3 text-center" colspan="13">Falha ao carregar. Tente novamente.</td></tr>`;
+      }
+    }
+
+    function renderLeads(data) {
+      const tbody = document.getElementById('leadsBody');
+      tbody.innerHTML = '';
+
+      if (!data || data.length === 0) {
+        tbody.innerHTML = `<tr><td class="px-4 py-3 text-center" colspan="13">Nenhum lead encontrado.</td></tr>`;
+        document.getElementById('count').innerText = '0 resultados';
+        return;
+      }
+
+      document.getElementById('count').innerText = `${data.length} resultado(s)`;
+
+      data.forEach(lead => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="px-3 md:px-4 py-3">${lead.nome || '-'}</td>
+          <td class="px-3 md:px-4 py-3">${lead.data_nascimento || '-'}</td>
+          <td class="px-3 md:px-4 py-3">${lead.cidade || '-'}</td>
+          <td class="px-3 md:px-4 py-3">${lead.estado || '-'}</td>
+          <td class="px-3 md:px-4 py-3">${lead.pais || '-'}</td>
+          <td class="px-3 md:px-4 py-3">${lead.email || '-'}</td>
+          <td class="px-3 md:px-4 py-3">${lead.whatsapp || '-'}</td>
+          <td class="px-3 md:px-4 py-3">${lead.nivel_tenis || '-'}</td>
+          <td class="px-3 md:px-4 py-3">${lead.atn ?? '-'}</td>
+          <td class="px-3 md:px-4 py-3">${lead.tipo_jogador || '-'}</td>
+          <td class="px-3 md:px-4 py-3">${lead.frequencia_jogo || '-'}</td>
+          <td class="px-3 md:px-4 py-3">${lead.partidas_recentes || '-'}</td>
+          <td class="px-3 md:px-4 py-3">${lead.created_at ? new Date(lead.created_at).toLocaleString() : '-'}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function applyFilters() {
+      const nomeFiltro = (document.getElementById('searchNome').value || '').toLowerCase();
+      const cidadeFiltro = (document.getElementById('searchCidade').value || '').toLowerCase();
+      const estadoFiltro = (document.getElementById('searchEstado').value || '').toLowerCase();
+
+      const filtrados = allLeads.filter(lead =>
+        (!nomeFiltro || (lead.nome || '').toLowerCase().includes(nomeFiltro)) &&
+        (!cidadeFiltro || (lead.cidade || '').toLowerCase().includes(cidadeFiltro)) &&
+        (!estadoFiltro || (lead.estado || '').toLowerCase().includes(estadoFiltro))
+      );
+
+      renderLeads(filtrados);
+    }
+
+    function clearFilters() {
+      document.getElementById('searchNome').value = '';
+      document.getElementById('searchCidade').value = '';
+      document.getElementById('searchEstado').value = '';
+      applyFilters();
+    }
+
+    function exportToCSV() {
+      let csv = 'Nome,Nascimento,Cidade,Estado,País,Email,WhatsApp,Nível Tênis,ATN,Tipo Jogador,Frequência Jogo,Partidas Recentes,Criado em\n';
+      const nomeFiltro = (document.getElementById('searchNome').value || '').toLowerCase();
+      const cidadeFiltro = (document.getElementById('searchCidade').value || '').toLowerCase();
+      const estadoFiltro = (document.getElementById('searchEstado').value || '').toLowerCase();
+
+      const filtrados = allLeads.filter(lead =>
+        (!nomeFiltro || (lead.nome || '').toLowerCase().includes(nomeFiltro)) &&
+        (!cidadeFiltro || (lead.cidade || '').toLowerCase().includes(cidadeFiltro)) &&
+        (!estadoFiltro || (lead.estado || '').toLowerCase().includes(estadoFiltro))
+      );
+
+      filtrados.forEach(lead => {
+        csv += [
+          lead.nome, lead.data_nascimento, lead.cidade, lead.estado, lead.pais, lead.email, lead.whatsapp,
+          lead.nivel_tenis, lead.atn, lead.tipo_jogador, lead.frequencia_jogo, lead.partidas_recentes,
+          lead.created_at ? new Date(lead.created_at).toLocaleString() : ''
+        ].map(val => `"${val ?? ''}"`).join(',') + '\n';
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "leads-tennis-link.csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    // Listeners
+    document.getElementById('searchNome').addEventListener('input', applyFilters);
+    document.getElementById('searchCidade').addEventListener('input', applyFilters);
+    document.getElementById('searchEstado').addEventListener('input', applyFilters);
+    document.getElementById('clearFilters').addEventListener('click', clearFilters);
+    document.getElementById('exportCSV').addEventListener('click', exportToCSV);
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+  </script>
+
+</body>
+</html>
